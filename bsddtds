@@ -1,0 +1,67 @@
+
+--         SCRIPT DE MANIPULACIÓN DE DATOS
+-- 
+-- 1️ INSERCIÓN DE UN NUEVO CLIENTE
+
+INSERT INTO Persona (nombre, apellido, fecha_nacimiento, genero) 
+VALUES ('Nuevo', 'Cliente', '1995-05-05', 'M');
+
+-- Usamos un subquery para recuperar el último ID insertado
+INSERT INTO Cedula (id_persona, numero_cedula, fecha_emision, lugar_emision)
+VALUES (
+    (SELECT id_persona FROM Persona ORDER BY id_persona DESC LIMIT 1),
+    '999-999999-9999Z',
+    '2022-01-10',
+    'Managua'
+);
+
+-- Inserción en la tabla Cliente
+INSERT INTO Cliente (id_persona, codigo_cliente, fecha_registro, categoria)
+VALUES (
+    (SELECT id_persona FROM Persona ORDER BY id_persona DESC LIMIT 1),
+    'CLI-0021',
+    CURDATE(),
+    'B'
+);
+-- 2️  ACTUALIZACIÓN DE SALARIOS
+--      (Aumento del 10% a empleados que no sean Directores)
+--
+UPDATE Empleado
+SET salario = salario * 1.1
+WHERE puesto NOT LIKE '%Director%'
+AND salario IS NOT NULL;
+
+-- 3️ ELIMINACIÓN DE PEDIDOS CANCELADOS
+--      (Pedidos cancelados con más de un año de antigüedad)
+
+DELETE FROM Pedido
+WHERE estado = 'Cancelado'
+AND fecha_pedido < DATE_SUB(CURDATE(), INTERVAL 1 YEAR);
+
+-
+-- 4️  ACTUALIZACIÓN DE CALIFICACIONES
+--      (Asignar calificaciones aleatorias a estudiantes sin calificación 
+--       en cursos que terminaron hace más de 3 meses)
+
+UPDATE Estudiante_Curso ec
+INNER JOIN Curso c ON ec.id_curso = c.id_curso
+SET ec.calificacion = ROUND(6 + RAND() * 4, 1)
+WHERE ec.calificacion IS NULL 
+AND ec.fecha_inscripcion < DATE_SUB(CURDATE(), INTERVAL 3 MONTH);
+-- 5️ CONSULTA DE RESUMEN DE DATOS
+--      (Listar el nuevo cliente junto con su cédula y categoría)
+
+SELECT 
+    p.id_persona,
+    p.nombre,
+    p.apellido,
+    p.fecha_nacimiento,
+    p.genero,
+    c.numero_cedula,
+    cl.codigo_cliente,
+    cl.fecha_registro,
+    cl.categoria
+FROM Persona p
+INNER JOIN Cedula c ON p.id_persona = c.id_persona
+INNER JOIN Cliente cl ON p.id_persona = cl.id_persona
+WHERE p.id_persona = (SELECT id_persona FROM Persona ORDER BY id_persona DESC LIMIT 1);
