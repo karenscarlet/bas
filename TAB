@@ -1,0 +1,134 @@
+-- ========================================
+-- CREACIÓN DE LA BASE DE DATOS
+-- ========================================
+CREATE DATABASE IF NOT EXISTS CajaRegistradora;
+USE CajaRegistradora;
+
+-- ========================================
+-- TABLA PRODUCTO
+-- Información de los productos en venta
+-- ========================================
+CREATE TABLE IF NOT EXISTS Producto (
+    id_producto INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(255),
+    precio DECIMAL(10, 2) NOT NULL,
+    stock INT NOT NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- TABLA CLIENTE
+-- Información de los clientes
+-- ========================================
+CREATE TABLE IF NOT EXISTS Cliente (
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    telefono VARCHAR(15),
+    correo VARCHAR(100),
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- TABLA EMPLEADO
+-- Información de los empleados
+-- ========================================
+CREATE TABLE IF NOT EXISTS Empleado (
+    id_empleado INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    puesto VARCHAR(100),
+    salario DECIMAL(10, 2),
+    fecha_contratacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ========================================
+-- TABLA VENTA
+-- Encabezado de cada venta realizada
+-- ========================================
+CREATE TABLE IF NOT EXISTS Venta (
+    id_venta INT AUTO_INCREMENT PRIMARY KEY,
+    id_cliente INT,
+    id_empleado INT,
+    fecha_venta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    monto_total DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente),
+    FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
+);
+
+-- ========================================
+-- TABLA DETALLE_VENTA
+-- Detalle de productos en cada venta
+-- ========================================
+CREATE TABLE IF NOT EXISTS Detalle_Venta (
+    id_detalle INT AUTO_INCREMENT PRIMARY KEY,
+    id_venta INT,
+    id_producto INT,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(10, 2) NOT NULL,
+    subtotal DECIMAL(10, 2) NOT NULL,
+    FOREIGN KEY (id_venta) REFERENCES Venta(id_venta),
+    FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
+
+-- ========================================
+-- TABLA HISTORIAL_STOCK
+-- Registro de movimientos de inventario
+-- ========================================
+CREATE TABLE IF NOT EXISTS Historial_Stock (
+    id_historial INT AUTO_INCREMENT PRIMARY KEY,
+    id_producto INT,
+    movimiento ENUM('ENTRADA', 'SALIDA'),
+    cantidad INT NOT NULL,
+    fecha_movimiento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
+
+-- ========================================
+-- PROCEDIMIENTO PARA REGISTRAR UNA VENTA
+-- ========================================
+DELIMITER $$
+
+CREATE PROCEDURE Registrar_Venta(
+    IN p_id_cliente INT,
+    IN p_id_empleado INT,
+    IN p_monto_total DECIMAL(10, 2),
+    IN p_productos TEXT
+)
+BEGIN
+    DECLARE v_id_venta INT;
+
+    -- 1️⃣ Insertar la venta en la tabla Venta
+    INSERT INTO Venta (id_cliente, id_empleado, monto_total) 
+    VALUES (p_id_cliente, p_id_empleado, p_monto_total);
+
+    -- 2️⃣ Obtener el ID de la venta recién creada
+    SET v_id_venta = LAST_INSERT_ID();
+
+    -- 3️⃣ Insertar los productos en Detalle_Venta
+    -- Formato esperado: "id_producto,cantidad,precio_unitario|id_producto,cantidad,precio_unitario"
+    WHILE LOCATE('|', p_productos) > 0 DO
+        SET @producto = SUBSTRING_INDEX(p_productos, '|', 1);
+        SET p_productos = SUBSTRING(p_productos, LOCATE('|', p_productos) + 1);
+
+        SET @id_producto = SUBSTRING_INDEX(@producto, ',', 1);
+        SET @cantidad = SUBSTRING_INDEX(SUBSTRING_INDEX(@producto, ',', 2), ',', -1);
+        SET @precio_unitario = SUBSTRING_INDEX(@producto, ',', -1);
+        SET @subtotal = @cantidad * @precio_unitario;
+
+        INSERT INTO Detalle_Venta (id_venta, id_producto, cantidad, precio_unitario, subtotal)
+        VALUES (v_id_venta, @id_producto, @cantidad, @precio_unitario, @subtotal);
+
+        -- Actualizar el inventario
+        UPDATE Producto
+        SET stock = stock - @cantidad
+        WHERE id_producto = @id_producto;
+
+        -- Registrar en el historial
+        INSERT INTO Historial_Stock (id_producto, movimiento, cantidad)
+        VALUES (@id_producto, 'SALIDA', @cantidad);
+    END WHILE;
+END $$
+
+DELIMITER ;
