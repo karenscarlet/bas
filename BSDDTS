@@ -1,0 +1,105 @@
+
+CREATE PROCEDURE Generar_Reporte()
+BEGIN
+     1️ LISTADO DE PERSONAS ORDENADO POR APELLIDO
+    
+    SELECT 
+        p.nombre AS "Nombre",
+        p.apellido AS "Apellido",
+        c.numero_cedula AS "Número de Cédula"
+    FROM Persona p
+    INNER JOIN Cedula c ON p.id_persona = c.id_persona
+    ORDER BY p.apellido ASC, p.nombre ASC;
+
+     2️ NÚMERO DE CLIENTES POR CATEGORÍA
+
+
+    SELECT 
+        cl.categoria AS "Categoría",
+        COUNT(*) AS "Cantidad de Clientes"
+    FROM Cliente cl
+    GROUP BY cl.categoria
+    ORDER BY "Cantidad de Clientes" DESC;
+
+    3️ TOP 5 CLIENTES CON MÁS PEDIDOS
+        SELECT 
+        p.nombre AS "Nombre",
+        p.apellido AS "Apellido",
+        COUNT(pd.id_pedido) AS "Total de Pedidos"
+    FROM Cliente c
+    INNER JOIN Persona p ON c.id_persona = p.id_persona
+    INNER JOIN Pedido pd ON c.id_cliente = pd.id_cliente
+    GROUP BY p.nombre, p.apellido
+    ORDER BY "Total de Pedidos" DESC
+    LIMIT 5;
+
+     4️ MONTO TOTAL DE PEDIDOS POR CLIENTE
+ 
+    SELECT 
+        p.nombre AS "Nombre",
+        p.apellido AS "Apellido",
+        SUM(pd.monto) AS "Monto Total"
+    FROM Cliente c
+    INNER JOIN Persona p ON c.id_persona = p.id_persona
+    INNER JOIN Pedido pd ON c.id_cliente = pd.id_cliente
+    GROUP BY p.nombre, p.apellido
+    ORDER BY "Monto Total" DESC;
+
+    5️ PRODUCTOS MÁS VENDIDOS
+    
+    SELECT 
+        pr.nombre AS "Producto",
+        SUM(dp.cantidad) AS "Total Vendido"
+    FROM Detalle_Pedido dp
+    INNER JOIN Producto pr ON dp.id_producto = pr.id_producto
+    GROUP BY pr.nombre
+    ORDER BY "Total Vendido" DESC
+    LIMIT 5;
+
+  6️ PROMEDIO DE GASTO POR CLIENTE
+    
+    SELECT 
+        p.nombre AS "Nombre",
+        p.apellido AS "Apellido",
+        AVG(pd.monto) AS "Promedio de Gasto"
+    FROM Cliente c
+    INNER JOIN Persona p ON c.id_persona = p.id_persona
+    INNER JOIN Pedido pd ON c.id_cliente = pd.id_cliente
+    GROUP BY p.nombre, p.apellido
+    ORDER BY "Promedio de Gasto" DESC;
+
+     7️ PEDIDOS DEL ÚLTIMO MES
+  
+    SELECT 
+        p.nombre AS "Nombre",
+        p.apellido AS "Apellido",
+        pd.fecha_pedido AS "Fecha del Pedido",
+        pd.monto AS "Monto"
+    FROM Cliente c
+    INNER JOIN Persona p ON c.id_persona = p.id_persona
+    INNER JOIN Pedido pd ON c.id_cliente = pd.id_cliente
+    WHERE pd.fecha_pedido >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+    ORDER BY pd.fecha_pedido DESC;
+
+     8️ LISTADO DE EMPLEADOS Y SUS PUESTOS
+  
+    SELECT 
+        e.nombre AS "Nombre",
+        e.apellido AS "Apellido",
+        e.puesto AS "Puesto",
+        e.salario AS "Salario"
+    FROM Empleado e
+    ORDER BY e.puesto, e.nombre;
+
+    
+     9️ REPORTE RESUMIDO DE DATOS 
+    SELECT 
+        (SELECT COUNT(*) FROM Persona) AS "Total de Personas",
+        (SELECT COUNT(*) FROM Cliente) AS "Total de Clientes",
+        (SELECT COUNT(*) FROM Pedido) AS "Total de Pedidos",
+        (SELECT SUM(dp.cantidad) FROM Detalle_Pedido dp) AS "Total de Productos Vendidos",
+        (SELECT SUM(pd.monto) FROM Pedido pd) AS "Total Facturado";
+    
+END $$
+
+DELIMITER ;
